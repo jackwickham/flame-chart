@@ -1,7 +1,8 @@
-import { For, Show, createSignal, onCleanup } from "solid-js";
+import { createSignal, onCleanup } from "solid-js";
 import ChartNodes from "./ChartNodes";
-import { Node } from "./node";
+import { type Node } from "./node";
 import Tooltip from "./Tooltip";
+import { resizeObserver } from "../directives";
 
 interface Event {
   label: string;
@@ -44,10 +45,7 @@ const processData = (events: Event[]) => {
 const nodes = processData(events);
 
 const Chart = () => {
-  const [windowSize, setWindowSize] = createSignal(window.innerWidth);
-  const handleResize = () => setWindowSize(window.innerWidth);
-  window.addEventListener("resize", handleResize);
-  onCleanup(() => window.removeEventListener("resize", handleResize));
+  const [windowWidth, setWindowWidth] = createSignal(window.innerWidth);
 
   const [hoveredNode, setHoveredNode] = createSignal<Node | null>(null);
   const [mousePos, setMousePos] = createSignal<{x: number, y: number}>({x: 0, y: 0});
@@ -55,25 +53,45 @@ const Chart = () => {
 
   const [focusedNode, setFocusedNode] = createSignal<Node>(nodes[0]);
   const offset = () => focusedNode().start.getTime();
-  const scalingFactor = () => (focusedNode().end.getTime() - focusedNode().start.getTime()) / windowSize();
+  const scalingFactor = () => (focusedNode().end.getTime() - focusedNode().start.getTime()) / windowWidth();
 
-  return (<>
-    <svg class="w-full min-h-full" onMouseMove={handleMouseMove}>
-      <ChartNodes
-          nodes={nodes}
-          xOffset={offset()}
-          yOffset={0}
-          xScalingFactor={scalingFactor()}
-          setFocus={setFocusedNode}
-          setNodeHovered={setHoveredNode}
-          unsetNodeHovered={(node) => node === hoveredNode() && setHoveredNode(null)} />
-    </svg>
-    <Show when={hoveredNode()}>
-      <div class="absolute pointer-events-none" style={{ top: `${mousePos().y}px`, left: `${mousePos().x}px` }}>
-        <Tooltip node={hoveredNode()!} />
+  const tooltip = () => {
+    const node = hoveredNode();
+    if (!node) {
+      return null;
+    }
+
+    const [tooltipWidth, setTooltipWidth] = createSignal(0);
+    const left = () => {
+      if (mousePos().x + tooltipWidth() > windowWidth()) {
+        return Math.max(windowWidth() - tooltipWidth(), 0);
+      }
+      return mousePos().x;
+    }
+    return (
+      <div class="absolute pointer-events-none max-w-xs" style={{ top: `${mousePos().y}px`, left: `${left()}px` }} use:resizeObserver={(entry) => setTooltipWidth(entry.contentRect.width)}>
+        <Tooltip node={node} />
       </div>
-    </Show>
-  </>);
+    );
+  };
+
+  return (
+    <div use:resizeObserver={(entry) => setWindowWidth(entry.contentRect.width)}>
+      <div class="overflow-x-hidden">
+        <svg class="w-full min-h-full" onMouseMove={handleMouseMove}>
+          <ChartNodes
+              nodes={nodes}
+              xOffset={offset()}
+              yOffset={0}
+              xScalingFactor={scalingFactor()}
+              setFocus={setFocusedNode}
+              setNodeHovered={setHoveredNode}
+              unsetNodeHovered={(node) => node === hoveredNode() && setHoveredNode(null)} />
+        </svg>
+        {tooltip()}
+      </div>
+    </div>
+  );
 };
 
 export default Chart;

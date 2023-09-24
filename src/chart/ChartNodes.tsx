@@ -1,4 +1,4 @@
-import { Component, For } from "solid-js";
+import { type Component, For } from "solid-js";
 import type { Node } from "./node";
 
 interface ChartNodesProps {

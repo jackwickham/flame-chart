@@ -1,7 +1,11 @@
-import { Component } from "solid-js";
-import { Node } from "./node";
+import { type Component } from "solid-js";
+import { type Node } from "./node";
 
-const Tooltip: Component<{node: Node}> = (props) => {
+export interface TooltipProps {
+  node: Node;
+}
+
+const Tooltip: Component<TooltipProps> = (props) => {
   return (
     <div class="shadow-sm border rounded p-2 bg-white text-xs">
       <div class="font-bold">{props.node.label}</div>
